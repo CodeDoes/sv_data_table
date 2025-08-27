@@ -1,0 +1,39 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Dev",
+            "request": "launch",
+            "type": "node",
+            "runtimeExecutable": "vite",
+            "runtimeArgs": [
+                "dev",
+                "--port",
+                "40141"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+        },
+        {
+            "name": "Browser",
+            "request": "launch",
+            "type": "chrome",
+            "url": "http://localhost:40141",
+            "webRoot": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Compound",
+            "configurations": [
+                "Dev",
+                "Browser"
+            ],
+            "stopAll": true
+        }
+    ]
+}
