@@ -16,9 +16,11 @@ export type TableConfig<
   } = any
 > = {
   fields: K[];
-  columns: CS;
+  createColumns: (items: I[]) => CS;
   createItemRows: (items: I[]) => ItemRow<K>[];
 };
 export type TableData<TC extends TableConfig = any> = {
+  order: TC["fields"][number][];
+  columns: ReturnType<TC["createColumns"]>;
   item_rows: ItemRow<TC["fields"][number]>[];
 };

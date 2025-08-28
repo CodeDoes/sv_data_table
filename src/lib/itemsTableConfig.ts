@@ -7,11 +7,13 @@ export type Item = {
 };
 export const itemsTableConfig = {
   fields: ["a", "b", "c", "d"],
-  columns: {
-    a: { width: "auto", label: "A", type: "number" },
-    b: { width: "auto", label: "B", type: "number" },
-    c: { width: "auto", label: "C", type: "number" },
-    d: { width: "auto", label: "D", type: "number" },
+  createColumns(items) {
+    return {
+      a: { width: "auto", label: "A", type: "number" },
+      b: { width: "auto", label: "B", type: "number" },
+      c: { width: "auto", label: "C", type: "number" },
+      d: { width: "auto", label: "D", type: "number" },
+    };
   },
   createItemRows(items) {
     function createProxy<K extends keyof Item>(
@@ -41,5 +43,5 @@ export const itemsTableConfig = {
       d: createProxy(item, "d", { type: "number" }),
     }));
   },
-} satisfies TableConfig<Item>;
-123123
+} as const satisfies TableConfig<Item>;
+123123;
