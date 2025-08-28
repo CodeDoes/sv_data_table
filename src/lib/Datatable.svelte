@@ -28,15 +28,33 @@
 </script>
 
 <div class="datatable" style:grid-template-columns={cols}>
+  <div class="column-container" class:shouldOverlay={reorderingColumn != null}>
+    {#each tableData.order as field (field)}
+      <button
+        aria-label="Column"
+        type="button"
+        class="column"
+        class:activelyReordering={reorderingColumn == field}
+        onfocus={(e) => {}}
+        onmouseover={(e) => {
+          if (reorderingColumn != null && reorderingColumn != field) {
+            const ri = tableData.order.indexOf(reorderingColumn);
+            tableData.order.splice(ri, 1);
+            const fi = tableData.order.indexOf(field);
+            tableData.order.splice(fi >= ri ? fi + 1 : fi, 0, reorderingColumn);
+          }
+        }}
+      ></button>
+    {/each}
+  </div>
   <div
+    style:grid-row="1"
     class="row-group toolbar-row-group"
     data-toolbar="top"
     data-row-group="header"
   >
     <div class="row">
-      <div class="cell toolbar-cell">
-        &nbsp;
-      </div>
+      <div class="cell toolbar-cell">&nbsp;</div>
     </div>
     <div class="row">
       {#each tableData.order as field (field)}
@@ -58,19 +76,6 @@
           <button
             type="button"
             class="value-widget padded-widget reorder-handle"
-            onfocus={(e) => {}}
-            onmouseover={(e) => {
-              if (reorderingColumn != null && reorderingColumn != field) {
-                const ri = tableData.order.indexOf(reorderingColumn);
-                tableData.order.splice(ri, 1);
-                const fi = tableData.order.indexOf(field);
-                tableData.order.splice(
-                  fi >= ri ? fi + 1 : fi,
-                  0,
-                  reorderingColumn
-                );
-              }
-            }}
             onmousedown={(e) => {
               reorderingColumn = field;
               document.documentElement.classList.add(reorderColumnClass);
@@ -81,7 +86,7 @@
                 window.removeEventListener("mousemove", mouseMove);
                 window.removeEventListener("mouseup", mouseUp);
                 reorderingColumn = null;
-                document.documentElement.classList.add(reorderColumnClass);
+                document.documentElement.classList.remove(reorderColumnClass);
               };
               window.addEventListener("mousemove", mouseMove);
               window.addEventListener("mouseup", mouseUp);
@@ -132,7 +137,11 @@
       {/each}
     </div>
   </div>
-  <div class="row-group item-row-group" data-row-group="item">
+  <div
+    style:grid-row="2"
+    class="row-group item-row-group"
+    data-row-group="item"
+  >
     {#each tableData.item_rows as row, index (index)}
       <div class="row">
         {#each tableData.order as field (field)}
@@ -162,6 +171,7 @@
     {/each}
   </div>
   <div
+    style:grid-row="3"
     class="row-group toolbar-row-group"
     data-toolbar="bottom"
     data-row-group="footer"
@@ -195,7 +205,8 @@
     --toolbar-bg: hsl(0, 0%, 0%);
     --toolbar-bg-hover: hsl(0, 0%, 10%);
     --toolbar-outline-hover: hsl(0, 30%, 50%);
-    --toolbar-cell-bg-reordering: hsl(0, 30%, 20%);
+    --toolbar-column-reordering-border: hsl(0, 50%, 50%);
+    --toolbar-cell-reordering-bg: hsl(0, 30%, 20%);
     --toolbar-btn-bg: hsl(0, 0%, 10%);
     --toolbar-btn-bg-hover: hsl(0, 0%, 20%);
     --toolbar-btn-border: hsl(0, 0%, 50%);
@@ -217,6 +228,24 @@
     width: max-content;
     /* grid-auto-flow: row dense; */
     grid-auto-rows: max-content;
+  }
+  .column-container {
+    display: grid;
+    grid-row: 1 / -1;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    z-index: 50;
+    pointer-events: none;
+  }
+  .shouldOverlay {
+    pointer-events: all;
+  }
+  .column {
+    all: unset;
+    height: 100%;
+  }
+  .activelyReordering{
+    border-left: thick solid var(--toolbar-column-reordering-border);
   }
   .row-group.toolbar-row-group {
     --cell-bg: var(--toolbar-bg);
@@ -291,7 +320,7 @@
     grid-column: 1 / -1;
   }
   .row-group.toolbar-row-group > .row > .cell.reordering {
-    --cell-bg: var(--toolbar-cell-bg-reordering);
+    --cell-bg: var(--toolbar-cell-reordering-bg);
     --cell-bg-hover: var(--cell-bg);
   }
   .value-widget {
