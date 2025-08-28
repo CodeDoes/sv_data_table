@@ -6,14 +6,12 @@
   import type { TableConfig, TableData } from "./tableConfig";
 
   let {
-    tableConfig,
     tableData = $bindable(),
     createFilterFieldName = ({ field }) => `${field}`,
     createUpdateFieldName = ({ field, index }) => `item-${index}-${field}`,
     update_form_id = "update-form",
     filter_form_id = "filter-form",
   }: {
-    tableConfig: TC;
     tableData: TD;
     createFilterFieldName?: (args: { field: string }) => string;
     createUpdateFieldName?: (args: { index: number; field: string }) => string;
