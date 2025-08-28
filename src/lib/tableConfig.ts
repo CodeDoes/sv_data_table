@@ -1,7 +1,8 @@
 export type ItemRow<K extends string = any> = {
   [k in K]:
     | { type: "number"; value: number; defaultValue: number }
-    | { type: "text"; value: string; defaultValue: string };
+    | { type: "text"; value: string; defaultValue: string }
+    | {};
 };
 export type TableConfig<
   I extends Record<string, string | number> = any,
@@ -9,10 +10,9 @@ export type TableConfig<
   CS extends {
     [k in K]: {
       width: string;
-      label: string;
+
       filter?: { type: "search" };
-      type: "number" | "text";
-    };
+    } & ({ label: string } | { action: "reset-all" });
   } = any
 > = {
   fields: K[];

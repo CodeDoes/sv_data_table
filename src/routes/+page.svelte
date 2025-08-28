@@ -27,19 +27,22 @@
     if (w_raw) {
       const w = JSON.parse(w_raw);
       for (const f of tableConfig.fields) {
-        tableData.columns[f].width = w[f];
+        if (w[f]) {
+          tableData.columns[f].width = w[f];
+        }
       }
     }
     const o_raw = localStorage.getItem("itemsTableData-orders");
     if (o_raw) {
-      tableData.order = JSON.parse(o_raw);
+      const vs = JSON.parse(o_raw) as string[];
+      tableData.order = [
+        ...vs.filter((v) => tableData.order.includes(v as any)),
+        ...tableData.order.filter((v) => !vs.includes(v)),
+      ] as any;
     }
   });
   $effect(() => {
-    localStorage.setItem(
-      "itemsTableData-widths",
-      JSON.stringify(widths)
-    );
+    localStorage.setItem("itemsTableData-widths", JSON.stringify(widths));
   });
   $effect(() => {
     localStorage.setItem(
@@ -50,7 +53,13 @@
 </script>
 
 <div class="page-container">
-  <Datatable bind:tableData />
+  <Datatable
+    bind:tableData
+    onReset={() => {
+      tableData.order = [...tableConfig.fields];
+      tableData.columns = tableConfig.createColumns(items);
+    }}
+  />
 </div>
 
 <style>

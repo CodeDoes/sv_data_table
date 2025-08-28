@@ -9,12 +9,14 @@
     tableData = $bindable(),
     createFilterFieldName = ({ field }) => `${field}`,
     createUpdateFieldName = ({ field, index }) => `item-${index}-${field}`,
+    onReset = () => {},
     update_form_id = "update-form",
     filter_form_id = "filter-form",
   }: {
     tableData: TD;
     createFilterFieldName?: (args: { field: string }) => string;
     createUpdateFieldName?: (args: { index: number; field: string }) => string;
+    onReset?: () => void;
     update_form_id?: string;
     filter_form_id?: string;
   } = $props();
@@ -23,7 +25,7 @@
   const draggingColumnClass = "dragging-column-resizer";
   const reorderColumnClass = "dragging-column-reorder";
   const cols = $derived(
-    tableData.order.map((f) => tableData.columns[f].width).join(" ")
+    tableData.order.map((f) => `[${f}] ${tableData.columns[f].width}`).join(" ")
   );
 </script>
 
@@ -54,7 +56,11 @@
     data-row-group="header"
   >
     <div class="row">
-      <div class="cell toolbar-cell">&nbsp;</div>
+      <div class="cell toolbar-cell">
+        &nbsp;
+        {JSON.stringify(tableData.order)}
+        {JSON.stringify(cols)}
+      </div>
     </div>
     <div class="row">
       {#each tableData.order as field (field)}
@@ -73,65 +79,75 @@
       {#each tableData.order as field (field)}
         {@const col = tableData.columns[field]}
         <div class="cell" class:reordering={reorderingColumn == field}>
-          <button
-            type="button"
-            class="value-widget padded-widget reorder-handle"
-            onmousedown={(e) => {
-              reorderingColumn = field;
-              document.documentElement.classList.add(reorderColumnClass);
-              const mouseMove = (e: MouseEvent) => {
-                e.preventDefault();
-              };
-              const mouseUp = (e: MouseEvent) => {
-                window.removeEventListener("mousemove", mouseMove);
-                window.removeEventListener("mouseup", mouseUp);
-                reorderingColumn = null;
-                document.documentElement.classList.remove(reorderColumnClass);
-              };
-              window.addEventListener("mousemove", mouseMove);
-              window.addEventListener("mouseup", mouseUp);
-            }}
-          >
-            {col.label}
-          </button>
-          {#if reorderingColumn == null}
+          {#if "label" in col}
             <button
-              aria-label="Resize column"
               type="button"
-              class="resize-handle"
+              class="value-widget padded-widget reorder-handle"
               onmousedown={(e) => {
-                const startX = e.clientX;
-                const parent = e.currentTarget!.parentElement!;
-                const startWidth = parent.clientWidth;
-                resizingColumn = field;
-                document.documentElement.classList.add(draggingColumnClass);
-                const onMouseMove = (e: MouseEvent) => {
-                  const newWidth = Math.max(
-                    0,
-                    startWidth + (e.clientX - startX)
-                  );
-                  col.width = `${newWidth}px`;
-
-                  flushSync(() => {
-                    col.width = `${parent.offsetWidth}px`;
-                  });
-                  flushSync(() => {
-                    col.width = `${parent.offsetWidth}px`;
-                  });
+                reorderingColumn = field;
+                document.documentElement.classList.add(reorderColumnClass);
+                const mouseMove = (e: MouseEvent) => {
+                  e.preventDefault();
                 };
-                const onMouseUp = () => {
-                  window.removeEventListener("mousemove", onMouseMove);
-                  window.removeEventListener("mouseup", onMouseUp);
-
-                  resizingColumn = null;
-                  document.documentElement.classList.remove(
-                    draggingColumnClass
-                  );
+                const mouseUp = (e: MouseEvent) => {
+                  window.removeEventListener("mousemove", mouseMove);
+                  window.removeEventListener("mouseup", mouseUp);
+                  reorderingColumn = null;
+                  document.documentElement.classList.remove(reorderColumnClass);
                 };
-                window.addEventListener("mousemove", onMouseMove);
-                window.addEventListener("mouseup", onMouseUp);
+                window.addEventListener("mousemove", mouseMove);
+                window.addEventListener("mouseup", mouseUp);
               }}
-            ></button>
+            >
+              {col.label}
+            </button>
+            {#if reorderingColumn == null}
+              <button
+                aria-label="Resize column"
+                type="button"
+                class="resize-handle"
+                onmousedown={(e) => {
+                  const startX = e.clientX;
+                  const parent = e.currentTarget!.parentElement!;
+                  const startWidth = parent.clientWidth;
+                  resizingColumn = field;
+                  document.documentElement.classList.add(draggingColumnClass);
+                  const onMouseMove = (e: MouseEvent) => {
+                    const newWidth = Math.max(
+                      0,
+                      startWidth + (e.clientX - startX)
+                    );
+                    col.width = `${newWidth}px`;
+
+                    flushSync(() => {
+                      col.width = `${parent.offsetWidth}px`;
+                    });
+                    flushSync(() => {
+                      col.width = `${parent.offsetWidth}px`;
+                    });
+                  };
+                  const onMouseUp = () => {
+                    window.removeEventListener("mousemove", onMouseMove);
+                    window.removeEventListener("mouseup", onMouseUp);
+
+                    resizingColumn = null;
+                    document.documentElement.classList.remove(
+                      draggingColumnClass
+                    );
+                  };
+                  window.addEventListener("mousemove", onMouseMove);
+                  window.addEventListener("mouseup", onMouseUp);
+                }}
+              ></button>
+            {/if}
+          {:else}
+            <button
+              class="btn"
+              type="button"
+              onclick={() => {
+                onReset();
+              }}>Reset</button
+            >
           {/if}
         </div>
       {/each}
@@ -145,27 +161,29 @@
     {#each tableData.item_rows as row, index (index)}
       <div class="row">
         {#each tableData.order as field (field)}
-          {@const col = tableData.columns[field]}
-          {@const attrs = {
-            name: createUpdateFieldName({
-              index,
-              field,
-            }),
-            form: update_form_id,
-            type: row[field].type,
-            title: `${row[field].defaultValue}`,
-          }}
-
-          <div
-            class="cell"
-            class:changed={row[field].defaultValue != row[field].value}
-          >
-            <input
-              class="value-widget padded-widget"
-              bind:value={row[field].value}
-              {...attrs}
-            />
-          </div>
+          {#if "type" in row[field]}
+            {@const attrs = {
+              name: createUpdateFieldName({
+                index,
+                field,
+              }),
+              form: update_form_id,
+              type: row[field].type,
+              title: `${row[field].defaultValue}`,
+            }}
+            <div
+              class="cell"
+              class:changed={row[field].defaultValue != row[field].value}
+            >
+              <input
+                class="value-widget padded-widget"
+                bind:value={row[field].value}
+                {...attrs}
+              />
+            </div>
+          {:else}
+            <div class="cell"></div>
+          {/if}
         {/each}
       </div>
     {/each}
@@ -244,7 +262,7 @@
     all: unset;
     height: 100%;
   }
-  .activelyReordering{
+  .activelyReordering {
     border-left: thick solid var(--toolbar-column-reordering-border);
   }
   .row-group.toolbar-row-group {
@@ -343,12 +361,13 @@
   }
   .resize-handle {
     all: unset;
-    position: relative;
-    background-color: var(--toolbar-resize-bg);
     min-width: 1ex;
     height: 100%;
     cursor: col-resize;
     z-index: 50;
+  }
+  .resize-handle:hover {
+    background-color: var(--toolbar-resize-bg);
   }
   .reorder-handle {
     cursor: ew-resize;

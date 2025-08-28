@@ -6,13 +6,17 @@ export type Item = {
   d: number;
 };
 export const itemsTableConfig = {
-  fields: ["a", "b", "c", "d"],
+  fields: ["a", "b", "c", "d", "_meta"],
   createColumns(items) {
     return {
-      a: { width: "auto", label: "A", type: "number" },
-      b: { width: "auto", label: "B", type: "number" },
-      c: { width: "auto", label: "C", type: "number" },
-      d: { width: "auto", label: "D", type: "number" },
+      a: { width: "auto", label: "A" },
+      b: { width: "auto", label: "B" },
+      c: { width: "auto", label: "C" },
+      d: { width: "auto", label: "D" },
+      _meta: {
+        width: "min-content",
+        actions: "reset-all",
+      },
     };
   },
   createItemRows(items) {
@@ -41,6 +45,7 @@ export const itemsTableConfig = {
       b: createProxy(item, "b", { type: "number" }),
       c: createProxy(item, "c", { type: "number" }),
       d: createProxy(item, "d", { type: "number" }),
+      _meta: {},
     }));
   },
 } as const satisfies TableConfig<Item>;
