@@ -1,25 +1,57 @@
-import z from "zod";
-import { createProxy, type TableState } from "./tableConfig.svelte";
+import { z } from "zod";
+import {
+  createItemRowCells,
+  createProxy,
+  type TableState,
+} from "./tableConfig.svelte";
 
 import { browser } from "$app/environment";
 import { resolve } from "$app/paths";
-export type Item = {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-};
+
+// Define the schema for the nested coordinates object
+const coordinatesValidator = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+
+// Define the schema for a single fantasy location
+export const fantasyLocationValidator = z.object({
+  name: z.string(),
+  type: z.string(),
+  description: z.string(),
+  inhabitants: z.array(z.string()),
+  coordinates: coordinatesValidator,
+});
+
+export const formLoc = z.object({
+  name: fantasyLocationValidator.shape.name,
+  type: fantasyLocationValidator.shape.type,
+  description: fantasyLocationValidator.shape.description,
+  inhabitants: z.string(),
+  coordinates: z.string().regex(/\d+,\d+/),
+});
+export const toFormLocConverter = fantasyLocationValidator
+  .transform((x) => ({
+    ...x,
+    inhabitants: x.inhabitants.join(","),
+    coordinates: `${x.coordinates.x},${x.coordinates.y}`,
+  }))
+  .pipe(formLoc);
+// Define the schema for the entire array of locations
+export type FantasyLocation = z.infer<typeof fantasyLocationValidator>;
+export type FormLoc = z.infer<typeof formLoc>;
 export function getSubState() {
   let substate: Pick<
-    TableState<keyof Item>,
+    TableState<keyof FantasyLocation>,
     "columnOrders" | "columnWidths"
   > = $state({
-    columnOrders: ["a", "b", "c", "d"],
+    columnOrders: ["name", "type", "description", "inhabitants", "coordinates"],
     columnWidths: {
-      a: "auto",
-      b: "auto",
-      c: "auto",
-      d: "auto",
+      name: "auto",
+      type: "auto",
+      description: "auto",
+      inhabitants: "auto",
+      coordinates: "auto",
     },
   });
   const columnOrdersValidator = z
@@ -78,7 +110,7 @@ export function getSubState() {
   });
   return substate;
 }
-export function createTableState(items: Item[]): TableState<keyof Item> {
+export function createTableState(items: FormLoc[]): TableState<keyof FormLoc> {
   const substate = $state(getSubState());
   return {
     get columnOrders() {
@@ -86,6 +118,9 @@ export function createTableState(items: Item[]): TableState<keyof Item> {
     },
     get columnWidths() {
       return substate.columnWidths;
+    },
+    forms: {
+      ["update-form"]: { method: "POST" },
     },
     rowgroups: {
       header: [
@@ -109,68 +144,35 @@ export function createTableState(items: Item[]): TableState<keyof Item> {
         },
         {
           cells: {
-            a: { type: "search", value: "", form: "filter-form", name: "a" },
-            b: { type: "search", value: "", form: "filter-form", name: "b" },
-            c: { type: "search", value: "", form: "filter-form", name: "c" },
-            d: { type: "search", value: "", form: "filter-form", name: "d" },
+            // ["name"]: { type: "search", value: "", name: "name" },
+            // ["type"]: { type: "search", value: "", name: "type" },
+            // ["description"]: { type: "search", value: "", name: "description" },
+            // ["inhabitants"]: { type: "search", value: "", name: "inhabitants" },
+            // ["coordinates"]: { type: "search", value: "", name: "coordinates" },
           },
         },
         {
           cells: {
-            a: { type: "header-label", label: "A" },
-            b: { type: "header-label", label: "B" },
-            c: { type: "header-label", label: "C" },
-            d: { type: "header-label", label: "D" },
+            ["name"]: { type: "header-label", label: "Name" },
+            ["type"]: { type: "header-label", label: "Type" },
+            ["description"]: { type: "header-label", label: "Description" },
+            ["inhabitants"]: { type: "header-label", label: "Inhabitants" },
+            ["coordinates"]: { type: "header-label", label: "Coordinates" },
           },
         },
       ],
       body: items.map((item, i) => ({
-        cells: {
-          a: {
-            type: "number",
-            form: "update-form",
-            name: `items-${i}-a`,
-            get value() {
-              return item.a;
-            },
-            set value(v) {
-              item.a = v;
-            },
+        cells: createItemRowCells(
+          item,
+          {
+            ["name"]: { type: "text", form: "update-form" },
+            ["type"]: { type: "text", form: "update-form" },
+            ["description"]: { type: "text", form: "update-form" },
+            ["coordinates"]: { type: "text", form: "update-form" },
+            ["inhabitants"]: { type: "text", form: "update-form" },
           },
-          b: {
-            type: "number",
-            form: "update-form",
-            name: `items-${i}-b`,
-            get value() {
-              return item.b;
-            },
-            set value(v) {
-              item.b = v;
-            },
-          },
-          c: {
-            type: "number",
-            form: "update-form",
-            name: `items-${i}-c`,
-            get value() {
-              return item.c;
-            },
-            set value(v) {
-              item.c = v;
-            },
-          },
-          d: {
-            type: "number",
-            form: "update-form",
-            name: `items-${i}-d`,
-            get value() {
-              return item.d;
-            },
-            set value(v) {
-              item.d = v;
-            },
-          },
-        },
+          `locations-${i}-`
+        ),
       })),
       footer: [
         { widgets: [{ type: "submit", label: "Update", form: "update-form" }] },

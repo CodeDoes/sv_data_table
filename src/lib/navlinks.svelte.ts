@@ -16,5 +16,12 @@ export function getNavLinks() {
         return this.href == page.url.pathname;
       },
     },
+    {
+      href: resolve("/locations"),
+      label: "Locations",
+      get active() {
+        return this.href == page.url.pathname;
+      },
+    },
   ];
 }

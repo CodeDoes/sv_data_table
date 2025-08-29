@@ -1,7 +1,7 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import Datatable from "$lib/Datatable.svelte";
-  import { createTableState } from "$lib/itemsTableConfig.svelte";
+  import { createTableState } from "$lib/homepage.svelte";
   import type {} from "$lib/tableConfig.svelte";
   import { onMount, untrack } from "svelte";
   import z from "zod";

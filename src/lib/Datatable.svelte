@@ -28,6 +28,13 @@
   );
 </script>
 
+{#each Object.entries(tableState.forms || {}) as [id, formConfig]}
+  <form {id} method={formConfig.method}>
+    {#each Object.entries(formConfig.defaultValues || {}) as [k, v]}
+      <input type="hidden" name={k} value={v} />
+    {/each}
+  </form>
+{/each}
 {#each Object.entries(tableState.datalists || {}) as [id, opts]}
   <datalist {id}>
     {#each Object.entries(opts) as [value, label]}

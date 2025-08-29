@@ -62,6 +62,13 @@ export type TableState<K extends string = any> = {
   datalists?: {
     [k: string]: { [k: string]: string };
   };
+  forms?: {
+    [k: string]: {
+      method: "GET" | "POST";
+      action?: string;
+      defaultValues?: { [k: string]: string };
+    };
+  };
   rowgroups: {
     [k in "header" | "body" | "footer"]: TableRow<K>[];
   };
@@ -83,15 +90,17 @@ export function createProxy<
 }
 export function createItemRowCells<K extends string = any>(
   item: Record<K, any>,
-  fields: Record<K, { type: "text" | "number"; list?: string }>,
+  fields: Partial<
+    Record<K, { type: "text" | "number"; list?: string; form?: string }>
+  >,
   prefix: string = ""
 ): (TableRow<K> & { cells: any })["cells"] {
   return Object.fromEntries(
     Object.entries(fields).map(([k, f]) => [
       k,
       {
-        type: fields[k as keyof typeof fields].type,
-        list: fields[k as keyof typeof fields].list,
+        type: fields[k as keyof typeof fields]!.type,
+        list: fields[k as keyof typeof fields]!.list,
         name: `${prefix}${k}`,
         get value() {
           return Reflect.get(item, k);
