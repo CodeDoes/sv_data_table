@@ -1,71 +1,26 @@
 <script lang="ts">
   import { browser } from "$app/environment";
   import Datatable from "$lib/Datatable.svelte";
-  import {
-    itemsTableConfig as tableConfig,
-    type Item,
-  } from "$lib/itemsTableConfig";
-  import type { TableConfig, TableData } from "$lib/tableConfig";
+  import { createTableState } from "$lib/itemsTableConfig.svelte";
+  import type {} from "$lib/tableConfig.svelte";
   import { onMount, untrack } from "svelte";
+  import z from "zod";
 
-  let items = $state(
+  const items = $state(
     [...Array(20)].map(() => ({ a: 111111, b: 222222, c: 33333, d: 11 }))
   );
-  let tableData = $state({
-    order: tableConfig.fields as (typeof tableConfig.fields)[number][],
-    item_rows: tableConfig.createItemRows(items),
-    columns: tableConfig.createColumns(items),
-  } satisfies TableData<typeof tableConfig>);
-
-  let widths = $derived(
-    Object.fromEntries(
-      tableConfig.fields.map((f) => [f, tableData.columns[f].width] as const)
-    ) as Record<string, string>
-  );
-  onMount(() => {
-    const w_raw = localStorage.getItem("itemsTableData-widths");
-    if (w_raw) {
-      const w = JSON.parse(w_raw);
-      for (const f of tableConfig.fields) {
-        if (w[f]) {
-          tableData.columns[f].width = w[f];
-        }
-      }
-    }
-    const o_raw = localStorage.getItem("itemsTableData-orders");
-    if (o_raw) {
-      const vs = JSON.parse(o_raw) as string[];
-      tableData.order = [
-        ...vs.filter((v) => tableData.order.includes(v as any)),
-        ...tableData.order.filter((v) => !vs.includes(v)),
-      ] as any;
-    }
-  });
-  $effect(() => {
-    localStorage.setItem("itemsTableData-widths", JSON.stringify(widths));
-  });
-  $effect(() => {
-    localStorage.setItem(
-      "itemsTableData-orders",
-      JSON.stringify(tableData.order)
-    );
-  });
+  const tableState = $state(createTableState(items));
 </script>
 
 <div class="page-container">
-  <Datatable
-    bind:tableData
-    onReset={() => {
-      tableData.order = [...tableConfig.fields];
-      tableData.columns = tableConfig.createColumns(items);
-    }}
-  />
+  <Datatable {tableState} />
+  <div>{JSON.stringify(items)}</div>
 </div>
 
 <style>
   .page-container {
     position: relative;
-    height: 100vh;
+    /* height: 100vh; */
     box-sizing: border-box;
     /* max-height: 100%; */
     overflow: auto;

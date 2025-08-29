@@ -1,206 +1,189 @@
-<script
-  lang="ts"
-  generics="TD extends TableData<TC>=any, TC extends TableConfig<any,K>=any, K extends string=any, "
->
+<script lang="ts" generics="TS extends TableState=any">
   import { flushSync, untrack } from "svelte";
-  import type { TableConfig, TableData } from "./tableConfig";
+  import type {
+    CellWidget,
+    TableRow,
+    TableState,
+    CommonWidget,
+  } from "./tableConfig.svelte";
 
   let {
-    tableData = $bindable(),
-    createFilterFieldName = ({ field }) => `${field}`,
-    createUpdateFieldName = ({ field, index }) => `item-${index}-${field}`,
-    onReset = () => {},
-    update_form_id = "update-form",
-    filter_form_id = "filter-form",
+    tableState = $bindable(),
   }: {
-    tableData: TD;
-    createFilterFieldName?: (args: { field: string }) => string;
-    createUpdateFieldName?: (args: { index: number; field: string }) => string;
-    onReset?: () => void;
-    update_form_id?: string;
-    filter_form_id?: string;
+    tableState: TS;
   } = $props();
-  let resizingColumn: null | TC["fields"][number] = $state(null);
-  let reorderingColumn: null | TC["fields"][number] = $state(null);
-  const draggingColumnClass = "dragging-column-resizer";
-  const reorderColumnClass = "dragging-column-reorder";
-  const cols = $derived(
-    tableData.order.map((f) => `[${f}] ${tableData.columns[f].width}`).join(" ")
+  const clss = {
+    resize: "dragging-column-resizer",
+    reorder: "dragging-column-reorder",
+  } as const;
+  type K = TS["columnOrders"][number];
+  const tempState = $state({
+    resize: null as K | null,
+    reorder: null as K | null,
+  });
+  const cols_css = $derived(
+    tableState.columnOrders
+      .map((f) => `[${f}] ${tableState.columnWidths[f]}`)
+      .join(" ")
   );
 </script>
 
-<div class="datatable" style:grid-template-columns={cols}>
-  <div class="column-container" class:shouldOverlay={reorderingColumn != null}>
-    {#each tableData.order as field (field)}
+{#each Object.entries(tableState.datalists || {}) as [id, opts]}
+  <datalist {id}>
+    {#each Object.entries(opts) as [value, label]}
+      <option {value}>{label}</option>
+    {/each}
+  </datalist>
+{/each}
+<div class="datatable" style:grid-template-columns={cols_css}>
+  <div
+    class="datatable-stack-item column-stack-item"
+    class:shouldOverlay={tempState.reorder != null}
+  >
+    {#each tableState.columnOrders as field (field)}
       <button
         aria-label="Column"
         type="button"
         class="column"
-        class:activelyReordering={reorderingColumn == field}
+        class:activelyReordering={tempState.reorder == field}
         onfocus={(e) => {}}
         onmouseover={(e) => {
-          if (reorderingColumn != null && reorderingColumn != field) {
-            const ri = tableData.order.indexOf(reorderingColumn);
-            tableData.order.splice(ri, 1);
-            const fi = tableData.order.indexOf(field);
-            tableData.order.splice(fi >= ri ? fi + 1 : fi, 0, reorderingColumn);
+          if (tempState.reorder != null && tempState.reorder != field) {
+            const ri = tableState.columnOrders.indexOf(tempState.reorder);
+            tableState.columnOrders.splice(ri, 1);
+            const fi = tableState.columnOrders.indexOf(field);
+            tableState.columnOrders.splice(
+              fi >= ri ? fi + 1 : fi,
+              0,
+              tempState.reorder
+            );
           }
         }}
       ></button>
     {/each}
   </div>
-  <div
-    style:grid-row="1"
-    class="row-group toolbar-row-group"
-    data-toolbar="top"
-    data-row-group="header"
-  >
-    <div class="row">
-      <div class="cell toolbar-cell">
-        &nbsp;
-        {JSON.stringify(tableData.order)}
-        {JSON.stringify(cols)}
-      </div>
-    </div>
-    <div class="row">
-      {#each tableData.order as field (field)}
-        <div class="cell">
-          <input
-            class="value-widget padded-widget"
-            type="search"
-            form={filter_form_id}
-            name={createFilterFieldName({ field })}
-            id=""
-          />
-        </div>
-      {/each}
-    </div>
-    <div class="row">
-      {#each tableData.order as field (field)}
-        {@const col = tableData.columns[field]}
-        <div class="cell" class:reordering={reorderingColumn == field}>
-          {#if "label" in col}
-            <button
-              type="button"
-              class="value-widget padded-widget reorder-handle"
-              onmousedown={(e) => {
-                reorderingColumn = field;
-                document.documentElement.classList.add(reorderColumnClass);
-                const mouseMove = (e: MouseEvent) => {
-                  e.preventDefault();
-                };
-                const mouseUp = (e: MouseEvent) => {
-                  window.removeEventListener("mousemove", mouseMove);
-                  window.removeEventListener("mouseup", mouseUp);
-                  reorderingColumn = null;
-                  document.documentElement.classList.remove(reorderColumnClass);
-                };
-                window.addEventListener("mousemove", mouseMove);
-                window.addEventListener("mouseup", mouseUp);
-              }}
-            >
-              {col.label}
-            </button>
-            {#if reorderingColumn == null}
-              <button
-                aria-label="Resize column"
-                type="button"
-                class="resize-handle"
-                onmousedown={(e) => {
-                  const startX = e.clientX;
-                  const parent = e.currentTarget!.parentElement!;
-                  const startWidth = parent.clientWidth;
-                  resizingColumn = field;
-                  document.documentElement.classList.add(draggingColumnClass);
-                  const onMouseMove = (e: MouseEvent) => {
-                    const newWidth = Math.max(
-                      0,
-                      startWidth + (e.clientX - startX)
-                    );
-                    col.width = `${newWidth}px`;
-
-                    flushSync(() => {
-                      col.width = `${parent.offsetWidth}px`;
-                    });
-                    flushSync(() => {
-                      col.width = `${parent.offsetWidth}px`;
-                    });
-                  };
-                  const onMouseUp = () => {
-                    window.removeEventListener("mousemove", onMouseMove);
-                    window.removeEventListener("mouseup", onMouseUp);
-
-                    resizingColumn = null;
-                    document.documentElement.classList.remove(
-                      draggingColumnClass
-                    );
-                  };
-                  window.addEventListener("mousemove", onMouseMove);
-                  window.addEventListener("mouseup", onMouseUp);
-                }}
-              ></button>
-            {/if}
-          {:else}
-            <button
-              class="btn"
-              type="button"
-              onclick={() => {
-                onReset();
-              }}>Reset</button
-            >
-          {/if}
-        </div>
-      {/each}
-    </div>
-  </div>
-  <div
-    style:grid-row="2"
-    class="row-group item-row-group"
-    data-row-group="item"
-  >
-    {#each tableData.item_rows as row, index (index)}
-      <div class="row">
-        {#each tableData.order as field (field)}
-          {#if "type" in row[field]}
-            {@const attrs = {
-              name: createUpdateFieldName({
-                index,
-                field,
-              }),
-              form: update_form_id,
-              type: row[field].type,
-              title: `${row[field].defaultValue}`,
-            }}
-            <div
-              class="cell"
-              class:changed={row[field].defaultValue != row[field].value}
-            >
-              <input
-                class="value-widget padded-widget"
-                bind:value={row[field].value}
-                {...attrs}
-              />
-            </div>
-          {:else}
-            <div class="cell"></div>
-          {/if}
+  <div class="datatable-stack-item content-stack-item">
+    {#each Object.entries(tableState.rowgroups) as [group_key, rows], gi}
+      <div
+        style:grid-row={gi + 1}
+        class={[
+          "row-group",
+          group_key == "body" ? "item-row-group" : "toolbar-row-group",
+        ]}
+        data-row-group={group_key}
+      >
+        {#each rows as row, index (index)}
+          {@render row_snippet(row)}
         {/each}
       </div>
     {/each}
   </div>
-  <div
-    style:grid-row="3"
-    class="row-group toolbar-row-group"
-    data-toolbar="bottom"
-    data-row-group="footer"
-  >
-    <div class="row">
-      <div class="cell toolbar-cell">
-        <button class="btn" type="submit">Update</button>
+</div>
+{#snippet row_snippet(row: TableRow)}
+  {#if "cells" in row}
+    <div class="row cell-row">
+      {#each tableState.columnOrders as field (field)}
+        <div class="cell" class:reordering={tempState.reorder == field}>
+          {#if row.cells[field]}
+            {@render cell_widget_snippet(row.cells[field], field)}
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <div class="row widget-row">
+      <div class="cell expand-cell">
+        {#each row.widgets as widget, i (i)}
+          {@render widget_snippet(widget)}
+        {/each}
       </div>
     </div>
-  </div>
-</div>
+  {/if}
+{/snippet}
+{#snippet cell_widget_snippet(widget: CellWidget, field: K)}
+  {#if widget.type == "header-label"}
+    <button
+      type="button"
+      class="value-widget padded-widget reorder-handle"
+      onmousedown={(e) => {
+        tempState.reorder = field;
+        document.documentElement.classList.add(clss.reorder);
+        const mouseMove = (e: MouseEvent) => {
+          e.preventDefault();
+        };
+        const mouseUp = (e: MouseEvent) => {
+          window.removeEventListener("mousemove", mouseMove);
+          window.removeEventListener("mouseup", mouseUp);
+          tempState.reorder = null;
+          document.documentElement.classList.remove(clss.reorder);
+        };
+        window.addEventListener("mousemove", mouseMove);
+        window.addEventListener("mouseup", mouseUp);
+      }}
+    >
+      {widget.label}
+    </button>
+    {#if tempState.reorder == null}
+      <button
+        aria-label="Resize column"
+        type="button"
+        class="resize-handle"
+        onmousedown={(e) => {
+          const startX = e.clientX;
+          const parent = e.currentTarget!.parentElement!;
+          const startWidth = parent.clientWidth;
+          tempState.resize = field;
+          document.documentElement.classList.add(clss.resize);
+          const onMouseMove = (e: MouseEvent) => {
+            const newWidth = Math.max(0, startWidth + (e.clientX - startX));
+            tableState.columnWidths[field] = `${newWidth}px`;
+
+            flushSync(() => {
+              tableState.columnWidths[field] = `${parent.offsetWidth}px`;
+            });
+            flushSync(() => {
+              tableState.columnWidths[field] = `${parent.offsetWidth}px`;
+            });
+          };
+          const onMouseUp = () => {
+            window.removeEventListener("mousemove", onMouseMove);
+            window.removeEventListener("mouseup", onMouseUp);
+
+            tempState.resize = null;
+            document.documentElement.classList.remove(clss.resize);
+          };
+          window.addEventListener("mousemove", onMouseMove);
+          window.addEventListener("mouseup", onMouseUp);
+        }}
+      ></button>
+    {/if}
+  {:else}
+    {@render widget_snippet(widget)}
+  {/if}
+{/snippet}
+{#snippet widget_snippet(widget: CommonWidget)}
+  {#if widget.type == "label"}
+    <span>{widget.label}</span>
+  {:else if widget.type == "link"}
+    <a class="btn" href={widget.href}>{widget.label}</a>
+  {:else if widget.type == "button"}
+    <button class="btn" type="button" onclick={widget.onclick}
+      >{widget.label}</button
+    >
+  {:else if widget.type == "submit"}
+    <button class="btn" type="submit" form={widget.form}>{widget.label}</button>
+  {:else}
+    <input
+      class="value-widget padded-widget"
+      type={widget.type}
+      bind:value={widget.value}
+      form={widget.form}
+      list={widget.list}
+      autocomplete="on"
+      name={widget.name}
+    />
+  {/if}
+{/snippet}
 
 <style>
   :global(:root.dragging-column-resizer) {
@@ -212,13 +195,8 @@
     cursor: ew-resize;
     user-select: none;
   }
-  .expand-area {
-    grid-column: 1/-1;
-    margin-bottom: auto;
-  }
   .datatable {
     display: grid;
-    grid-template-rows: min-content 1fr min-content;
     --text: hsl(0, 0%, 100%);
     --toolbar-bg: hsl(0, 0%, 0%);
     --toolbar-bg-hover: hsl(0, 0%, 10%);
@@ -247,20 +225,25 @@
     /* grid-auto-flow: row dense; */
     grid-auto-rows: max-content;
   }
-  .column-container {
+  .datatable-stack-item {
     display: grid;
     grid-row: 1 / -1;
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
-    z-index: 50;
+  }
+  .column-stack-item {
     pointer-events: none;
   }
-  .shouldOverlay {
+  .column-stack-item.shouldOverlay {
     pointer-events: all;
   }
   .column {
     all: unset;
     height: 100%;
+    z-index: 50;
+  }
+  .content-stack-item {
+    grid-template-rows: min-content 1fr min-content;
   }
   .activelyReordering {
     border-left: thick solid var(--toolbar-column-reordering-border);
@@ -285,25 +268,24 @@
     --z-default: var(--z-toolbar-default);
     --z-focus: var(--z-toolbar-focus);
     --z-hover: var(--z-toolbar-hover);
-    position: sticky;
     --cell-bg: var(--toolbar-bg);
     --cell-bg-hover: var(--toolbar-bg-hover);
     --cell-outline-hover: var(--toolbar-outline-hover);
   }
-  .row-group.toolbar-row-group[data-toolbar="top"] {
+  .row-group[data-row-group="header"] {
+    position: sticky;
     top: 0;
   }
-  .row-group.toolbar-row-group[data-toolbar="bottom"] {
+  .row-group[data-row-group="footer"] {
+    position: sticky;
     bottom: 0;
   }
   .row {
     display: grid;
     grid-column: 1/-1;
     grid-template-columns: subgrid;
-
-    grid-auto-columns: 1fr;
   }
-  .row-group > .row > .cell {
+  .cell {
     background-color: var(--cell-bg);
     border: thin solid var(--border);
     margin-top: -1px;
@@ -316,28 +298,25 @@
     min-width: min-content;
     width: auto;
   }
-  .row-group > .row > .cell:hover {
+  .cell:hover {
     outline: 1px solid var(--cell-outline-hover);
     outline-offset: -1px;
     z-index: var(--z-hover);
     background-color: var(--cell-bg-hover);
   }
-  .row-group > .row > .cell:focus-within {
+  .cell:focus-within {
     z-index: var(--z-focus);
   }
-  .row-group.item-row-group > .row > .cell {
+  .row-group.item-row-group {
     --cell-bg: var(--item-bg);
     --cell-bg-hover: var(--item-bg-hover);
     --cell-outline-hover: var(--item-outline-hover);
   }
-  .row-group.item-row-group > .row > .cell.changed {
+  .row-group.item-row-group {
     --cell-bg: var(--item-bg-changed);
     --cell-bg-hover: var(--item-bg-changed-hover);
   }
-  .row-group.toolbar-row-group > .row > .cell.toolbar-cell {
-    grid-column: 1 / -1;
-  }
-  .row-group.toolbar-row-group > .row > .cell.reordering {
+  .cell.reordering {
     --cell-bg: var(--toolbar-cell-reordering-bg);
     --cell-bg-hover: var(--cell-bg);
   }
@@ -371,6 +350,9 @@
   }
   .reorder-handle {
     cursor: ew-resize;
+  }
+  .expand-cell {
+    grid-column: 1 / -1;
   }
   .btn {
     all: unset;
