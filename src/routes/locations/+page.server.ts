@@ -1,10 +1,9 @@
-import _csvArrayUrl from "$lib/data/locations.json?url";
+import _csvArrayUrl from "./locations.json?url";
 import {
   formLoc,
   toFormLocConverter,
   fantasyLocationValidator,
-} from "$lib/locations.svelte";
-import { error } from "console";
+} from "./locations.svelte";
 import * as fs from "fs";
 import * as path from "path";
 import z from "zod";

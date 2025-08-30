@@ -2,11 +2,11 @@
   import {
     createTableState,
     type FantasyCharacter,
-  } from "$lib/characters.svelte";
+  } from "./characters.svelte";
   import Datatable from "$lib/Datatable.svelte";
   import { onMount } from "svelte";
   import { getItems, updateItems } from "./data.remote";
-  import type { TableState } from "$lib/tableConfig.svelte";
+  import { createRowGroupsTableState, type TableState } from "$lib/tableConfig.svelte";
   let items: FantasyCharacter[] = $state([]);
   async function getItemsWrapper() {
     items = await getItems();

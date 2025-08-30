@@ -1,5 +1,5 @@
 import z from "zod";
-import { createProxy, type TableState } from "./tableConfig.svelte";
+import { createProxy, type TableState } from "../lib/tableConfig.svelte";
 
 import { browser } from "$app/environment";
 import { resolve } from "$app/paths";

@@ -2,8 +2,8 @@ import { query, command } from "$app/server";
 import * as fs from "fs";
 import * as path from "path";
 import * as csv from "csv/sync";
-import _csvArrayUrl from "$lib/data/characters.csv?url";
-import { fantasyCharacterValidator } from "$lib/characters.svelte";
+import _csvArrayUrl from "./characters.csv?url";
+import { fantasyCharacterValidator } from "./characters.svelte";
 import z from "zod";
 const csvPath = path.join(process.cwd(), _csvArrayUrl);
 

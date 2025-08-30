@@ -4,7 +4,7 @@ import {
   createProxy,
   type TableRow,
   type TableState,
-} from "./tableConfig.svelte";
+} from "$lib/tableConfig.svelte";
 
 import { browser } from "$app/environment";
 import { resolve } from "$app/paths";
